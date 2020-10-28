@@ -1,9 +1,8 @@
 const puppeteer = require('puppeteer');
-const scrapCourseDetails = require('./scrapCourseDetails');
 const scrapurl = "https://handbook.unimelb.edu.au/2020/courses/gd-enrslaw/course-structure";
 
-// module.exports.fetchCourseDetails = async (scrapurl, callback) => {
-(async () => {
+module.exports.fetchCourseDetails = async (scrapurl, location, sector) => {
+    // (async () => {
 
     try {
         const browser = await puppeteer.launch({ headless: true });
@@ -13,50 +12,54 @@ const scrapurl = "https://handbook.unimelb.edu.au/2020/courses/gd-enrslaw/course
 
         let course = await page.$('table[class="zebra"] > tbody');
         let courseDetails = await course.$$('tr')
+        let units = []
 
         if (courseDetails.length) {
             for (const detail of courseDetails) {
                 const value = await detail.$$eval('td', tds => tds.map(td => td.textContent))
-                console.log(value)
+                let unit = new unitModel(value[3], value[0], value[1], value[2], location, sector)
+                units.push(unit)
+                // console.log(value)
             }
         }
 
 
         await browser.close()
-        return
+        // console.log(units)
+        return units
 
     } catch (error) {
         console.log(error)
     }
-})();
-// }
+    // })();
+}
 
-let model = {
-    "unitType": "Common Units (2 units)",
-    "creditPoints": "20 cp",
-    "description": "",
-    "unitList": [
-        {
-            "code": "CUC107",
-            "title": "CUC107 - Cultural Intelligence and Capability",
-            "year": "2020",
-            "hours": null,
-            "creditPoints": "10",
-            "semester": [
-                {
-                    "year": "2020",
-                    "semester": "Semester 1",
-                    "attendanceMode": "Internal",
-                    "location": "Alice Springs Campus",
-                    "learningMethod": "OLR"
-                }
-            ],
-            "sector": "Higher Education",
-            "discipline": "Indigenous Studies",
-            "prerequisites": "NA",
-            "incompatible": "NA",
-            "assumedKnowledge": "NA",
-            "description": ""
-        }
-    ]
+const unitModel = function (creditPoints, code, title, semester, location, sector) {
+    this.unitType = "NA",
+        this.creditPoints = creditPoints,
+        this.description = "",
+        this.unitList = [
+            {
+                code,
+                title,
+                year: "2020",
+                hours: null,
+                creditPoints,
+                semester: [
+                    {
+                        year: "2020",
+                        semester,
+                        attendanceMode: "NA",
+                        location,
+                        learningMethod: "NA"
+                    }
+                ],
+                sector,
+                discipline: "NA",
+                prerequisites: "NA",
+                incompatible: "NA",
+                assumedKnowledge: "NA",
+                description: ""
+            }
+        ]
 }

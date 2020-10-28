@@ -1,44 +1,47 @@
 const fs = require('fs');
-// const jsonfileData = require('./data.json') || [];
-
+const jsonfileData = require('./linkFetched.json') || [];
 const puppeteer = require('puppeteer');
 const scrapurl = 'https://handbook.unimelb.edu.au/search?page=1';
-// const scrapCourse = require('./scrapCourse');
+const scrapCourse = require('./scrapCourse');
 
 
 async function start() {
     const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
+    await page.goto(scrapurl, { waitUntil: 'domcontentloaded' });
 
     const self = {
 
-        parseResult: async () => {
+        parseResult: async (scrapurl) => {
             try {
-                let results = [];
                 // const jsonData = jsonfileData
-                await page.goto(scrapurl, { waitUntil: 'domcontentloaded' });
+                // await page.goto(scrapurl, { waitUntil: 'domcontentloaded' });
                 // await page.waitForSelector('.list-2')
 
-                let data = await page.$$eval('a[class="search-result-item__anchor"]', a => a.href);
-
-                for (const course of data) {
-                    const link = await course.getProperty('href');
-                    const courseLink = await link.jsonValue();
-                    // const courseName = await course.$eval('b', b => b.innerHTML);
-                    results.push(courseLink)
-                    console.log({ courseLink });
-                    // await scrapCourse.fetchCourseDetails(courseLink)
+                let data = await page.$$eval('a[class="search-result-item__anchor"]', anchors => anchors.map(a => a.href));
+                
+                for (const courseLink of data) {
+                    if (!jsonfileData.includes(courseLink)) {
+                        jsonfileData.push(courseLink)
+                        // console.log({ courseLink });
+                        await scrapCourse.fetchCourseDetails(courseLink)
+                    }
+                    fs.writeFile('linkFetched.json', JSON.stringify(jsonfileData), (err) => {
+                        if (err) {
+                            console.log(err);
+                        }
+                        console.log("JSON link is saved. Link: ", courseLink);
+                    });
                 }
 
                 await browser.close();
-                return results;
+                return data;
             } catch (error) {
                 console.log(error);
             }
         },
         getResults: async (nr) => {
             let results = [];
-
             do {
                 let new_results = await self.parseResult();
 
@@ -46,10 +49,11 @@ async function start() {
 
                 if (results.length < nr) {
                     let nextPageButton = await page.$('span[class="next"] > a[rel="next"]');
-
+                    let courseLink = await nextPageButton.getProperty('href')
+                    console.log(courseLink)
                     if (nextPageButton) {
                         await nextPageButton.click();
-                        await page.goto(scrapurl, { waitUntil: 'domcontentloaded' });
+                        await page.goto(courseLink, { waitUntil: 'domcontentloaded' });
                     } else {
                         break;
                     }
@@ -65,6 +69,6 @@ async function start() {
     }
 
     // await self.initialize();
-    let start = await self.parseResult();
+    let start = await self.getResults(348);
 }
 start()

@@ -1,19 +1,21 @@
+const fs = require('fs')
 const puppeteer = require('puppeteer');
 const uid = require('uid')
-// const scrapCourseDetails = require('./scrapCourseDetails');
+const scrapCourseDetails = require('./scrapCourseDetails');
 const scrapurl = "https://handbook.unimelb.edu.au/2020/courses/b-arts";
+const jsonfileData = require('./data.json') || [];
 
-// module.exports.fetchCourseDetails = async (scrapurl = "https://handbook.unimelb.edu.au/2020/courses/b-arts") => {
-(async () => {
+module.exports.fetchCourseDetails = async (scrapurl) => {
+// (async () => {
 
     try {
         const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
         await page.goto(scrapurl, { waitUntil: 'domcontentloaded' });
 
-        let courseName, cricosCode, courseStudyModes, courseYear, coordinatingUnit, level, totalCreditPoints, contact, courseDescription, term, location, prerequisites = "NA"
+        let courseCode = "NA", courseName = "NA", cricosCode = "NA", courseUnits = [], courseStudyModes = "NA", courseYear = "NA", courseLevel = "NA", totalCreditPoints = "NA", location = "NA", prerequisites = "NA"
         let courseLink = scrapurl
-        let courseCode = "UNIMELB-" + uid(5)
+        let courseId = "UNIMELB-" + uid(5)
 
         let course = await page.$('div[class="course__overview-box"] > table > tbody');
         let courseDetails = await course.$$('tr')
@@ -38,7 +40,7 @@ const scrapurl = "https://handbook.unimelb.edu.au/2020/courses/b-arts";
                     cricosCode = value
                 }
                 if (key.includes('Study level')) {
-                    level = value
+                    courseLevel = value
                 }
                 if (key.includes('Credit points')) {
                     totalCreditPoints = value.replace("credit points", "").trim()
@@ -62,15 +64,54 @@ const scrapurl = "https://handbook.unimelb.edu.au/2020/courses/b-arts";
                     courseStudyModes = studyModes
                 }
             }
+
+            courseUnits = await scrapCourseDetails.fetchCourseDetails(`${scrapurl}/course-structure`, location, courseLevel)
+
+            let courseData = {
+                courseId,
+                courseName,
+                courseCode,
+                cricosCode,
+                studyArea: "NA",
+                courseLevel,
+                courseStudyModes,
+                totalCreditPoints,
+                courseUnits,
+                isAvailableOnline: "NA",
+                campuses:[
+                    {
+                        type: "Offline",
+                        campusName: location,
+                        postalAddress: null,
+                        state: null,
+                        geolocation: {
+                            lat: null,
+                            lan: null
+                        }
+                    },
+                ],
+                courseFees:[],
+                institutionSpecificData:{},
+                courseLink
+            }
+
+            if (!jsonfileData.includes(courseData)) {
+                jsonfileData.push(courseData)
+                fs.writeFile('data.json', JSON.stringify(jsonfileData), (err) => {
+                    if (err) {
+                        console.log(err);
+                    }
+                    console.log("JSON data is saved. Data: ",courseData);
+                });
+            }
         }
 
-
-        console.log(courseStudyModes)
         await browser.close()
         return
 
     } catch (error) {
         console.log(error)
     }
-})();
-// }
+// })();
+}
+
