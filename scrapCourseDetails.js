@@ -9,17 +9,19 @@ module.exports.fetchCourseDetails = async (scrapurl, location, sector) => {
         const page = await browser.newPage();
         await page.goto(scrapurl, { waitUntil: 'domcontentloaded' });
         // await page.waitForSelector(' ')
-
-        let course = await page.$('table[class="zebra"] > tbody');
-        let courseDetails = await course.$$('tr')
         let units = []
 
-        if (courseDetails.length) {
-            for (const detail of courseDetails) {
-                const value = await detail.$$eval('td', tds => tds.map(td => td.textContent))
-                let unit = new unitModel(value[3], value[0], value[1], value[2], location, sector)
-                units.push(unit)
-                // console.log(value)
+        let course = await page.$('table[class="zebra"] > tbody');
+        if (course) {
+            let courseDetails = await course.$$('tr')
+
+            if (courseDetails.length) {
+                for (const detail of courseDetails) {
+                    const value = await detail.$$eval('td', tds => tds.map(td => td.textContent))
+                    let unit = new unitModel(value[3], value[0], value[1], value[2], location, sector)
+                    units.push(unit)
+                    // console.log(value)
+                }
             }
         }
 

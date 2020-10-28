@@ -1,4 +1,5 @@
 const fs = require('fs');
+const queryString = require('query-string');
 const jsonfileData = require('./linkFetched.json') || [];
 const puppeteer = require('puppeteer');
 const scrapurl = 'https://handbook.unimelb.edu.au/search?page=1';
@@ -17,9 +18,12 @@ async function start() {
                 // const jsonData = jsonfileData
                 // await page.goto(scrapurl, { waitUntil: 'domcontentloaded' });
                 // await page.waitForSelector('.list-2')
+                let parsed = queryString.parse(page.url());
+                let parsedUrl = Object.values(parsed)
+                let currentPage = parseInt(parsedUrl[0]);
 
                 let data = await page.$$eval('a[class="search-result-item__anchor"]', anchors => anchors.map(a => a.href));
-                
+
                 for (const courseLink of data) {
                     if (!jsonfileData.includes(courseLink)) {
                         jsonfileData.push(courseLink)
@@ -34,35 +38,38 @@ async function start() {
                     });
                 }
 
-                await browser.close();
-                return data;
+                return currentPage;
             } catch (error) {
                 console.log(error);
             }
         },
         getResults: async (nr) => {
-            let results = [];
+            let results = 0;
             do {
-                let new_results = await self.parseResult();
+                try {
 
-                results = [...results, ...new_results];
+                    let new_result = await self.parseResult();
+                    results = new_result;
 
-                if (results.length < nr) {
-                    let nextPageButton = await page.$('span[class="next"] > a[rel="next"]');
-                    let courseLink = await nextPageButton.getProperty('href')
-                    console.log(courseLink)
-                    if (nextPageButton) {
-                        await nextPageButton.click();
-                        await page.goto(courseLink, { waitUntil: 'domcontentloaded' });
-                    } else {
-                        break;
+                    if (results < nr) {
+                        let nextPageButton = await page.$('span[class="next"] > a[rel="next"]');
+                        let courseLink = await nextPageButton.getProperty('href')
+                        courseLink = await courseLink.jsonValue()
+                        if (nextPageButton) {
+                            // await nextPageButton.click();
+                            await page.goto(courseLink, { waitUntil: 'domcontentloaded' });
+                        } else {
+                            break;
+                        }
+
                     }
-
+                } catch (error) {
+                    console.log(error)
                 }
 
-            } while (results.length < nr);
-
-            return results.slice(0, nr);
+            } while (results < nr);
+            await browser.close();
+            return results;
         }
 
 
