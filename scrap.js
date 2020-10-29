@@ -31,23 +31,30 @@ async function start() {
                         // console.log({ courseLink });
                         let courseSaved = await scrapCourse.fetchCourseDetails(courseLink)
 
-                        if(!courseSaved){
+                        if (!courseSaved) {
                             let courseId = "UNIMELB-" + uid(5)
                             let courseName = await course.$eval('div[class="search-result-item__name"] > h3', h3 => h3.textContent)
-                            let courseCode = await course.$eval('div[class="search-result-item__name"] > span', span => span.textContent)
-                            let levelAndCredit = await course.$eval('div[class="search-result-item__meta-secondary"] > p', p => p.textContent)
+                            console.log("courseName: ",courseName)
+                            
+                            let courseCode = await course.$eval('div[class="search-result-item__name"] > span', span => span.textContent).catch(e => console.log('Error: ', e.message)) || "NA"
+                            console.log("courseCode: ",courseCode)
+
+                            let levelAndCredit = await course.$eval('div[class="search-result-item__meta-secondary"] > p', p => p.textContent).catch(e => console.log('Error: ', e.message)) || null
+                           
                             let courseLevel = "NA"
                             let totalCreditPoints = "NA"
-                            let level = levelAndCredit.split(',')
-                            if(level.length > 1){
-                                if(level[0].includes('level')){
-                                    courseLevel = level[0].trim()
+                            if (levelAndCredit) {
+                                let level = levelAndCredit.split(',')
+                                if (level.length > 1) {
+                                    if (level[0].includes('level')) {
+                                        courseLevel = level[0].trim()
+                                    }
+                                    if (level[1].includes('credit points')) {
+                                        totalCreditPoints = level[1].trim().replace('credit points', '')
+                                    }
+                                } else {
+                                    totalCreditPoints = level[0].trim().replace('credit points', '')
                                 }
-                                if(level[1].includes('credit points')){
-                                    totalCreditPoints = level[1].trim().replace('credit points','')
-                                }
-                            }else{
-                                totalCreditPoints = level[0].trim().replace('credit points','')
                             }
 
                             let courseData = {
@@ -59,7 +66,7 @@ async function start() {
                                 courseLevel,
                                 courseStudyModes: "NA",
                                 totalCreditPoints,
-                                courseUnits:[],
+                                courseUnits: [],
                                 isAvailableOnline: true,
                                 campuses: [],
                                 courseFees: [],
@@ -86,6 +93,7 @@ async function start() {
                         });
                     }
                 }
+                console.log("currentPage: ",currentPage)
                 return currentPage;
             } catch (error) {
                 console.log(error);
