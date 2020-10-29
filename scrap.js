@@ -1,6 +1,9 @@
 const fs = require('fs');
+const uid = require('uid')
 const queryString = require('query-string');
-const jsonfileData = require('./linkFetched.json') || [];
+const jsonLinkData = require('./linkFetched.json') || [];
+const jsonCourseData = require('./data.json') || [];
+
 const puppeteer = require('puppeteer');
 const scrapurl = 'https://handbook.unimelb.edu.au/search?page=1';
 const scrapCourse = require('./scrapCourse');
@@ -13,31 +16,76 @@ async function start() {
 
     const self = {
 
-        parseResult: async (scrapurl) => {
+        parseResult: async () => {
             try {
-                // const jsonData = jsonfileData
-                // await page.goto(scrapurl, { waitUntil: 'domcontentloaded' });
-                // await page.waitForSelector('.list-2')
                 let parsed = queryString.parse(page.url());
                 let parsedUrl = Object.values(parsed)
                 let currentPage = parseInt(parsedUrl[0]);
 
-                let data = await page.$$eval('a[class="search-result-item__anchor"]', anchors => anchors.map(a => a.href));
+                let data = await page.$$('a[class="search-result-item__anchor"]');
 
-                for (const courseLink of data) {
-                    if (!jsonfileData.includes(courseLink)) {
-                        jsonfileData.push(courseLink)
+                for (const course of data) {
+                    let courseLink = await course.getProperty('href')
+                    courseLink = await courseLink.jsonValue()
+                    if (!jsonLinkData.includes(courseLink)) {
                         // console.log({ courseLink });
-                        await scrapCourse.fetchCourseDetails(courseLink)
-                    }
-                    fs.writeFile('linkFetched.json', JSON.stringify(jsonfileData), (err) => {
-                        if (err) {
-                            console.log(err);
-                        }
-                        console.log("JSON link is saved. Link: ", courseLink);
-                    });
-                }
+                        let courseSaved = await scrapCourse.fetchCourseDetails(courseLink)
 
+                        if(!courseSaved){
+                            let courseId = "UNIMELB-" + uid(5)
+                            let courseName = await course.$eval('div[class="search-result-item__name"] > h3', h3 => h3.textContent)
+                            let courseCode = await course.$eval('div[class="search-result-item__name"] > span', span => span.textContent)
+                            let levelAndCredit = await course.$eval('div[class="search-result-item__meta-secondary"] > p', p => p.textContent)
+                            let courseLevel = "NA"
+                            let totalCreditPoints = "NA"
+                            let level = levelAndCredit.split(',')
+                            if(level.length > 1){
+                                if(level[0].includes('level')){
+                                    courseLevel = level[0].trim()
+                                }
+                                if(level[1].includes('credit points')){
+                                    totalCreditPoints = level[1].trim().replace('credit points','')
+                                }
+                            }else{
+                                totalCreditPoints = level[0].trim().replace('credit points','')
+                            }
+
+                            let courseData = {
+                                courseId,
+                                courseName,
+                                courseCode,
+                                cricosCode: "NA",
+                                studyArea: "NA",
+                                courseLevel,
+                                courseStudyModes: "NA",
+                                totalCreditPoints,
+                                courseUnits:[],
+                                isAvailableOnline: true,
+                                campuses: [],
+                                courseFees: [],
+                                institutionSpecificData: {},
+                                courseLink
+                            }
+
+                            if (!jsonCourseData.includes(courseData)) {
+                                jsonCourseData.push(courseData)
+                                fs.writeFile('data.json', JSON.stringify(jsonCourseData), (err) => {
+                                    if (err) {
+                                        console.log(err);
+                                    }
+                                    console.log("Course data is saved. ", courseData);
+                                });
+                            }
+                        }
+                        jsonLinkData.push(courseLink)
+                        fs.writeFile('linkFetched.json', JSON.stringify(jsonLinkData), (err) => {
+                            if (err) {
+                                console.log(err);
+                            }
+                            console.log("Course link is saved. ", courseLink);
+                        });
+                    }
+                }
                 return currentPage;
             } catch (error) {
                 console.log(error);
@@ -75,7 +123,7 @@ async function start() {
 
     }
 
-    // await self.initialize();
     let start = await self.getResults(348);
+    // self.parseResult()
 }
 start()

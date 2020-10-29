@@ -6,7 +6,7 @@ const scrapurl = "https://handbook.unimelb.edu.au/2020/courses/b-arts";
 const jsonfileData = require('./data.json') || [];
 
 module.exports.fetchCourseDetails = async (scrapurl) => {
-// (async () => {
+    // (async () => {
 
     try {
         const browser = await puppeteer.launch({ headless: true });
@@ -34,7 +34,7 @@ module.exports.fetchCourseDetails = async (scrapurl) => {
                     let splitString = value.replace(/<[^>]*>/g, '');
                     splitString = splitString.split('—')
                     courseYear = splitString[0].trim()
-                    location = splitString[1]
+                    location = splitString[1].trim()
                 }
                 if (key.includes('CRICOS code')) {
                     cricosCode = value
@@ -77,8 +77,8 @@ module.exports.fetchCourseDetails = async (scrapurl) => {
                 courseStudyModes,
                 totalCreditPoints,
                 courseUnits,
-                isAvailableOnline: "NA",
-                campuses:[
+                isAvailableOnline: true,
+                campuses: [
                     {
                         type: "Offline",
                         campusName: location,
@@ -90,10 +90,12 @@ module.exports.fetchCourseDetails = async (scrapurl) => {
                         }
                     },
                 ],
-                courseFees:[],
-                institutionSpecificData:{},
+                courseFees: [],
+                institutionSpecificData: {},
                 courseLink
             }
+
+            await browser.close()
 
             if (!jsonfileData.includes(courseData)) {
                 jsonfileData.push(courseData)
@@ -101,17 +103,19 @@ module.exports.fetchCourseDetails = async (scrapurl) => {
                     if (err) {
                         console.log(err);
                     }
-                    console.log("JSON data is saved. Data: ",courseData);
+                    console.log("JSON data is saved. ", courseData);
                 });
+                return true
             }
+            return false
         }
 
         await browser.close()
-        return
+        return false
 
     } catch (error) {
         console.log(error)
     }
-// })();
+    // })();
 }
 
